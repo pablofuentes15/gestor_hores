@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\UsersProject;
+use Illuminate\Support\Facades\App;
 use DB;
 
 class HomeContoller extends Controller {
@@ -20,14 +21,14 @@ class HomeContoller extends Controller {
           ->paginate(10); */
 
         $data = new HourEntryController();
-        $info_for_table = $data->getBDInfo("%", "%")->validated()->orderBy('hour_entry_created_at', 'desc')->paginate(10);
+        $info_for_table = $data->getBDInfo("%", "%", "%")->validated()->orderBy('hour_entry_created_at', 'desc')->paginate(10);
 
         return view('home', compact('lang', 'info_for_table'))
                         ->with('i', (request()->input('page', 1) - 1) * 10);
     }
 
     public function validateEntryHour($id, $lang) {
-
+        App::setLocale($lang);
         DB::table('hours_entry')
                 ->where('hours_entry.id', $id)
                 ->update(['validate' => 1]);
@@ -37,7 +38,7 @@ class HomeContoller extends Controller {
     }
 
     public function validateAllHours($lang) {
-
+        App::setLocale($lang);
         $entries_to_validate = DB::table('hours_entry')->where('validate', 0)->update(['validate' => 1]);
 
         return redirect()->route($lang . '_home.index')

@@ -53,7 +53,8 @@ class UserController extends Controller {
         $email = session('user_email', "%");
         $phone = session('user_phone', "%");
         $role = session('user_role', "%");
-        $order = "desc";
+        $orderby = session('user_orderby', "created_at");
+        $order = session('user_order', "desc");
         $num_records = session('users_num_records', 10);
 
         if ($role == "all") {
@@ -64,7 +65,26 @@ class UserController extends Controller {
             $num_records = User::count();
         }
         
+        //Solucio per que no mostri el usuaris amb phone null amb recerca que no se especifiqui el phone
         $query = User::where('nickname', 'like', "%" . $username . "%")
+                ->where('name', 'like', "%" . $name . "%")
+                ->where('surname', 'like', "%" . $surname . "%")
+                ->where('email', 'like', "%" . $email . "%")
+                ->where('role', 'like', "%" . $role . "%")
+                ->whereBetween('created_at', [$date_from, $date_to])
+                ->orderBy($orderby, $order);
+
+        if ($phone == "%"){
+			$query->where(function ($sub) use ($phone){
+               $sub->where('phone', 'like', "%" . $phone . "%")
+                     ->orWhere('phone', NULL);
+           });
+        }
+		else{
+			$query->where('phone', 'like', "%" . $phone . "%");
+        }
+
+        /*$query = User::where('nickname', 'like', "%" . $username . "%")
                 ->where('name', 'like', "%" . $name . "%")
                 ->where('surname', 'like', "%" . $surname . "%")
                 ->where('email', 'like', "%" . $email . "%")
@@ -75,9 +95,9 @@ class UserController extends Controller {
 
         if ($phone == "%")
             $query->orWhere('phone', NULL);
-
+        */
         $data = $query->paginate($num_records);
-
+        
         return view('users.index', compact(['lang', 'data', 'user_to_edit', 'show_filters', 'show_create_edit']))
                         ->with('i', (request()->input('page', 1) - 1) * $num_records);
     }
@@ -92,6 +112,8 @@ class UserController extends Controller {
         session(['user_role' => '%']);
         session(['user_date_from' => ""]);
         session(['user_date_to' => ""]);
+        session(['user_orderby' => "created_at"]);
+        session(['user_order' => "desc"]);
 
         return redirect()->route($lang . '_users.index');
     }
@@ -99,6 +121,19 @@ class UserController extends Controller {
     public function changeNumRecords(Request $request, $lang) {
 
         session(['users_num_records' => $request['num_records']]);
+
+        return redirect()->route($lang . '_users.index');
+    }
+    
+    public function orderBy($camp, $lang) {
+
+        if(session('user_orderby')!=$camp || session('user_order')=="desc"){
+            session(['user_orderby' => $camp]);
+            session(['user_order' => "asc"]);
+        }
+        else{
+            session(['user_order' => "desc"]);
+        }       
 
         return redirect()->route($lang . '_users.index');
     }
@@ -156,13 +191,17 @@ class UserController extends Controller {
      * @return \Illuminate\Http\Response
      */
     public function update(EditUserRequest $request, User $user, $lang) {
-        
+
         //$input = $request->except(['password']);
+
         if ($request->password == "") {
             $validated = $request->validated();
-
+            $validated["phone"] = str_replace(' ','',$validated["phone"]);
+        	$validated["phone"] = str_replace('-','',$validated["phone"]);
             $user->update(collect($validated)->except(['password'])->toArray());
         } else {
+            $request->phone = str_replace(' ','',$request->phone);
+        	$request->phone = str_replace('-','',$request->phone);
             $user->update($request->validated());
         }
         

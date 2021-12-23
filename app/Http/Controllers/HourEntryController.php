@@ -11,6 +11,8 @@ use DB;
 use App\Http\Requests\CreateHourEntryRequest;
 use Illuminate\Support\Facades\App;
 use Carbon\Carbon;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\HourEntryExport;
 
 class HourEntryController extends Controller {
 
@@ -70,12 +72,31 @@ class HourEntryController extends Controller {
         if ($request->has('_token') && $request->has('select_filter_name')) {
             $show_filters = true;
             session(['hour_entry_user' => $request['select_filter_name']]);
+            session(['hour_entry_customer' => $request['select_filter_customers']]);
             session(['hour_entry_project' => $request['select_filter_projects']]);
         }
 
+        
+        $dates = getIntervalDates($request, 'hour_entry');
+        $date_from = $dates[0];
+        $date_to = $dates[1];
+
         $user_id = session('hour_entry_user', "%");
+        $customer_id = session('hour_entry_customer', "%");
         $project_id = session('hour_entry_project', "%");
+        $orderby = session('hour_entry_orderby', "hours_entry.created_at");
+        $order = session('hour_entry_order', "desc");   
         $pagination = session('hour_entry_num_records', 10);
+
+        if ($user_id == '') {
+            $user_id = "%";
+        }
+        if ($customer_id == '') {
+            $customer_id = "%";
+        }
+        if ($project_id == '') {
+            $project_id = "%";
+        }
 
         if ($pagination == 'all') {
             $pagination = DB::table('hours_entry')->count();
@@ -99,8 +120,10 @@ class HourEntryController extends Controller {
 
         $lang = setGetLang();
 
-        $data = HourEntryController::getBDInfo($user_id, $project_id)
-                ->orderBy('hours_entry.created_at', 'desc')
+        //Vigilar variables $orderby
+        $data = HourEntryController::getBDInfo($user_id, $customer_id ,$project_id)
+                ->whereBetween('hours_entry.created_at', [$date_from, $date_to])
+                ->orderBy($orderby, $order)
                 ->paginate($pagination);
 
         $join = DB::table('hours_entry')->leftJoin('bag_hours', 'hours_entry.bag_hours_id', '=', 'bag_hours.id')->leftJoin('type_bag_hours', 'bag_hours.type_id', '=', 'type_bag_hours.id')->select('type_bag_hours.name')->get();
@@ -211,7 +234,7 @@ class HourEntryController extends Controller {
 
             $users_customers_data = DB::table('users')
                     ->join('users_projects', 'users.id', '=', 'users_projects.user_id')
-                    ->join('projects', 'users_projects.project_id', '=', 'projects.id')
+                    ->rightJoin('projects', 'users_projects.project_id', '=', 'projects.id')
                     ->join('customers', 'projects.customer_id', '=', 'customers.id')->distinct()
                     ->select('customers.id AS customer_id', 'customers.name AS customer_name')
                     ->where('users.id', '=', $user->id)
@@ -233,33 +256,87 @@ class HourEntryController extends Controller {
                         ->with('i', (request()->input('page', 1) - 1) * 10);
     }
 
-    public function getBDInfo($user_id, $project_id) {
+    public function getBDInfo($user_id, $customers_id, $project_id) {
         $data = UsersProject::join('users', 'users_projects.user_id', '=', 'users.id')
                 ->join('projects', 'users_projects.project_id', '=', 'projects.id')
                 ->join('customers', 'projects.customer_id', '=', 'customers.id')
                 ->join('hours_entry', 'users_projects.id', '=', 'hours_entry.user_project_id')
                 ->leftJoin('bag_hours', 'hours_entry.bag_hours_id', '=', 'bag_hours.id')
                 ->leftJoin('type_bag_hours', 'bag_hours.type_id', '=', 'type_bag_hours.id')
-                ->select('users.id AS user_id', 'users.nickname AS user_nickname', 'users.name AS user_name', 'users.surname AS user_surname', 'projects.name AS project_name', 'customers.name AS customer_name',
+                ->select('users.id AS user_id', 'users.nickname AS user_nickname', 'users.name AS user_name', 'users.surname AS user_surname', 'projects.id AS project_id', 'projects.name AS project_name', 'customers.id AS customer_id', 'customers.name AS customer_name',
                         'type_bag_hours.name AS type_bag_hour_name', 'hours_entry.bag_hours_id AS hours_entry_bag_hours_id', 'hours_entry.hours AS hour_entry_hours', 'hours_entry.hours_imputed AS hour_entry_hours_imputed', 'hours_entry.validate AS hour_entry_validate',
                         'hours_entry.created_at AS hour_entry_created_at', 'bag_hours.id AS bag_hour_id', 'hours_entry.id AS hours_entry_id',
                         'hours_entry.day AS hours_entry_day')
                 ->where('users.id', 'like', $user_id)
+                ->where('customers.id', 'like', $customers_id)
                 ->where('projects.id', 'like', $project_id);
 
         return $data;
+    }
+
+    //https://hores.atotarreu.com/control-panel/time-entries/filteruser/20/lang/ca
+    public function filterUser($user_id,$lang) {
+
+        session(['hour_entry_user' => $user_id]);
+        session(['hour_entry_project' => "%"]);
+        session(['hour_entry_customer' => "%"]);
+        session(['hour_entry_date_from' => ""]);
+        session(['hour_entry_date_to' => ""]);
+
+        return redirect()->route($lang . '_time_entries.index');
+    }
+
+    //https://hores.atotarreu.com/control-panel/time-entries/filterproject/11/lang/ca
+    public function filterProject($project_id,$lang) {
+
+        session(['hour_entry_user' => "%"]);
+        session(['hour_entry_project' => $project_id]);
+        session(['hour_entry_customer' => "%"]);
+        session(['hour_entry_date_from' => ""]);
+        session(['hour_entry_date_to' => ""]);
+
+        return redirect()->route($lang . '_time_entries.index');
+    }
+
+    //https://hores.atotarreu.com/control-panel/time-entries/filtercustomer/9/lang/ca
+    public function filterCustomer($customer_id,$lang) {
+
+        session(['hour_entry_user' => "%"]);
+        session(['hour_entry_project' => "%"]);
+        session(['hour_entry_customer' => $customer_id]);
+        session(['hour_entry_date_from' => ""]);
+        session(['hour_entry_date_to' => ""]);
+
+        return redirect()->route($lang . '_time_entries.index');
+    }
+
+    public function orderBy($camp, $lang) {
+
+        if(session('hour_entry_orderby')!=$camp){
+            session(['hour_entry_orderby' => $camp]);
+            session(['hour_entry_order' => "desc"]);
+        }
+        else{
+            session(['hour_entry_order' => "asc"]);
+        }        
+
+        return redirect()->route($lang . '_time_entries.index');
     }
 
     public function deleteFilters($lang) {
 
         session(['hour_entry_user' => "%"]);
         session(['hour_entry_project' => "%"]);
+        session(['hour_entry_date_from' => ""]);
+        session(['hour_entry_date_to' => ""]);
+        session(['hour_entry_orderby' => "hours_entry.created_at"]);
+        session(['hour_entry_order' => "desc"]);
 
         return redirect()->route($lang . '_time_entries.index');
     }
 
     public function validateEntryHour($hours_entry_id, $lang) {
-
+        App::setLocale($lang);
         DB::statement("UPDATE hours_entry SET validate = 1 where id = " . $hours_entry_id);
 
 //        DB::table('hours_entry')
@@ -271,7 +348,7 @@ class HourEntryController extends Controller {
     }
 
     public function inValidateEntryHour($hours_entry_id, $lang) {
-
+        App::setLocale($lang);
         DB::statement("UPDATE hours_entry SET validate = 0 where id = " . $hours_entry_id);
 
 //        DB::table('hours_entry')
@@ -373,7 +450,6 @@ class HourEntryController extends Controller {
                 'customers' => $users_customers_data,
             ];
         }
-
         return view('entry_hours.create', compact(['lang', 'users_data', 'users_info', 'users_customers']));
     }
 
@@ -435,6 +511,10 @@ class HourEntryController extends Controller {
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
+            }
+            
+            if(HourEntryController::endhours($project)){
+                //Mail
             }
 
             return redirect()->route($lang . '_time_entries.index')
@@ -520,6 +600,52 @@ class HourEntryController extends Controller {
 
         return redirect()->route($lang . '_time_entries.index')
                         ->with('success', __('message.hour_entry') . " " . __('message.deleted'));
+    }
+
+    public function endhours($project_id){
+        $users_projects_ids = DB::table('users_projects')
+            ->select('users_projects.id')
+            ->where('users_projects.project_id', '=', $project_id)
+            ->get();
+            
+        $users_projects_ids_array = [];
+            
+        foreach ($users_projects_ids as $user_project) {
+            array_push($users_projects_ids_array, $user_project->id);
+        }
+
+        $hours_imputed_project = DB::table('hours_entry')
+            ->select('hours_imputed')
+            ->whereIn('user_project_id', $users_projects_ids_array)
+            ->sum('hours_imputed');
+
+        $project=DB::table('bag_hours')
+            ->select('contracted_hours')
+            ->where('project_id', $project_id)
+            ->get();
+        $hours_end=$project[0]->contracted_hours-$hours_imputed_project;
+        var_dump($hours_end);
+        if($hours_end<=0){
+            return true;
+        }
+        return false;
+    }
+
+    public function export() 
+    {
+        $user_id = session('hour_entry_user', "%");
+        $customer_id = session('hour_entry_customer', "%");
+        $project_id = session('hour_entry_project', "%");
+        if ($user_id == '') {
+            $user_id = "%";
+        }
+        if ($customer_id == '') {
+            $customer_id = "%";
+        }
+        if ($project_id == '') {
+            $project_id = "%";
+        }
+    return Excel::download(new HourEntryExport($user_id,$customer_id,$project_id), 'HourEntry.xlsx');
     }
 
 }

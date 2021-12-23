@@ -36,10 +36,17 @@ class EditCustomerRequest extends FormRequest
         return [
             'name' => ['required', Rule::unique('customers')->ignore($this->customer->id), 'max:50'],
             'email' => ['required','email',Rule::unique('customers')->ignore($this->customer->id), 'max:50'],
-            'phone' => ['required', 'numeric', 'min:100000000', 'max:100000000000000', Rule::unique('customers')->ignore($this->customer->id)],
-            'tax_number' => ['required', Rule::unique('customers')->ignore($this->customer->id)],
+            'phone' => ['required', 'regex:/[0-9]{2}[- ]{0,1}[0-9]{3}[- ]{0,1}[0-9]{2}[- ]{0,1}[0-9]{2}/',
+            Rule::unique('customers')->ignore($this->customer->id)],
+            'tax_number' => ['required', Rule::unique('customers')->ignore($this->customer->id), 'regex:/^\d{8}[a-zA-Z]{1}$/'],
             'contact_person' => 'max:150',
-            'description' => 'max:400'
+            'description' => 'max:400',
+            'address' => 'required||max:100',
+            'postal_code' => 'required||max:10',
+            'iban' => ['required', Rule::unique('customers')->ignore($this->customer->id), 'max:24'],
+            'country' => 'required',
+            'province' => '',
+            'municipality' => ''
         ];
     }
     public function messages() 

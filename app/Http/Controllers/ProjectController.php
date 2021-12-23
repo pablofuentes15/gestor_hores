@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use App\Http\Requests\CreateProjectRequest;
 use App\Http\Requests\EditProjectRequest;
 use Illuminate\Support\Facades\App;
+use Illuminate\Pagination\LengthAwarePaginator;
 use DB;
 
 class ProjectController extends Controller {
@@ -59,7 +60,8 @@ class ProjectController extends Controller {
             $state = '%';
         }
 
-        $order = "desc";
+        $orderby = session('project_orderby', "created_at");
+        $order = session('project_order', "desc");
 
         $num_records = session('project_num_records', 10);
 
@@ -130,6 +132,20 @@ class ProjectController extends Controller {
         }
 
         $data = $projects;
+
+        if($orderby!="created_at"){
+			if($order=='desc'){
+				$projectsor = $projects->sortByDesc($orderby);
+			}
+			else{
+				$projectsor = $projects->sortBy($orderby);
+			}
+			
+			$projectsor = new LengthAwarePaginator($projectsor, $projects->total(), $projects->perPage());
+			
+			$data = $projectsor;
+		}
+
 //        
 //        $projects_ids_array = [];
 //        
@@ -242,6 +258,18 @@ class ProjectController extends Controller {
                         ->with('i', (request()->input('page', 1) - 1) * $num_records)->with('lang', $lang);
     }
 
+    //https://hores.atotarreu.com/control-panel/projects/filterproject/11/lang/ca
+    public function filterProject($project_id,$lang) {
+
+        session(['project_customer_id' => "%"]);
+        session(['project_project_id' => $project_id]);
+        session(['project_state' => '%']);
+        session(['project_date_from' => ""]);
+        session(['project_date_to' => ""]);
+
+        return redirect()->route($lang . '_projects.index');
+    }
+
     public function deleteFilters(Request $request) {
 
         session(['project_customer_id' => '%']);
@@ -249,12 +277,27 @@ class ProjectController extends Controller {
         session(['project_state' => '%']);
         session(['project_date_from' => ""]);
         session(['project_date_to' => ""]);
+        session(['project_orderby' => "created_at"]);
+        session(['project_order' => "desc"]);
         $lang = $request->lang;
 
         return redirect()->route($lang . '_projects.index');
     }
 
     function cancelEdit($lang) {
+        return redirect()->route($lang . '_projects.index');
+    }
+
+    public function orderBy($camp, $lang) {
+
+        if(session('project_orderby')!=$camp || session('project_order')=="desc"){
+            session(['project_orderby' => $camp]);
+            session(['project_order' => "asc"]);
+        }
+        else{
+            session(['project_order' => "desc"]);
+        }       
+
         return redirect()->route($lang . '_projects.index');
     }
     

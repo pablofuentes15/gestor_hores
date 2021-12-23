@@ -8,6 +8,9 @@ use DB;
 use App\Http\Requests\CreateBagHourRequest;
 use App\Http\Requests\EditBagHourRequest;
 use Illuminate\Support\Facades\App;
+use App\Exports\BagHourExport;
+use Maatwebsite\Excel\Facades\Excel;
+
 
 class BagHourController extends Controller
 {
@@ -63,7 +66,8 @@ class BagHourController extends Controller
 //            $total_price = number_format($total_price, 2, '.', '');
 //        }
         
-        $order = "desc";
+        $orderby = session('bag_hour_orderby', "created_at");
+        $order = session('bag_hour_order', "desc");
         
         
         $num_records = session('bag_hour_num_records', 10);
@@ -71,16 +75,16 @@ class BagHourController extends Controller
         if($num_records == 'all'){
             $num_records = BagHour::count();
         }
-        
+        //Fer el camp left_hores
         $data = BagHour::join('projects', 'bag_hours.project_id', '=', 'projects.id')
             ->join('type_bag_hours', 'bag_hours.type_id', '=', 'type_bag_hours.id')
             ->join('customers', 'projects.customer_id', '=', 'customers.id')
-            ->select('bag_hours.*', 'bag_hours.id as bag_hour_id', 'projects.id AS project_id', 'projects.name AS project_name', 'type_bag_hours.id AS type_id', 'type_bag_hours.name AS type_name', 'type_bag_hours.hour_price AS type_hour_price', 'customers.name as customer_name')
+            ->select('bag_hours.*', 'bag_hours.id as bag_hour_id', 'projects.id AS project_id', 'projects.name AS project_name', 'type_bag_hours.id AS type_id', 'type_bag_hours.name AS type_name', 'type_bag_hours.hour_price AS type_hour_price', 'customers.id as customer_id', 'customers.name as customer_name')
             ->where('type_bag_hours.id', 'like', $type)
             ->where('projects.id', 'like', $project)
             ->where('customers.id', 'like', $customer)
             ->whereBetween('bag_hours.created_at', $dates)
-            ->orderBy('created_at', $order)
+            ->orderBy($orderby, $order)
             ->paginate($num_records);
         
         foreach ($data as $bag_hour) {
@@ -114,6 +118,19 @@ class BagHourController extends Controller
                         ->with('i', (request()->input('page', 1) - 1) * $num_records)->with('lang', $lang);
     }
     
+    public function orderBy($camp, $lang) {
+
+        if(session('bag_hour_orderby')!=$camp || session('bag_hour_order')=="desc"){
+            session(['bag_hour_orderby' => $camp]);
+            session(['bag_hour_order' => "asc"]);
+        }
+        else{
+            session(['bag_hour_order' => "desc"]);
+        }       
+
+        return redirect()->route($lang . '_bag_hours.index');
+    }
+    
     public function changeNumRecords(Request $request, $lang) {
 
         session(['bag_hours_num_records' => $request['num_records']]);
@@ -132,6 +149,8 @@ class BagHourController extends Controller
         session(['bag_hour_customer_id' => '%']);
         session(['bag_hour_date_from' => ""]);
         session(['bag_hour_date_to' => ""]);
+        session(['bag_hour_orderby' => 'created_at']);
+        session(['bag_hour_order' => "desc"]);
         
         $lang = $request->lang;
 
@@ -249,5 +268,10 @@ class BagHourController extends Controller
 
         return redirect()->route($lang . '_bag_hours.index')
                         ->with('success', __('message.bag_hour') . " " . __('message.deleted'));
+    }
+
+    public function export() 
+    {
+        return Excel::download(new BagHourExport(7), 'bag_hours.xlsx');
     }
 }

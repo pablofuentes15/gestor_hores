@@ -43,7 +43,7 @@ class CreateHourEntryRequest extends FormRequest {
             //"inputed_hours" => "required|array",
             //"inputed_hours.*" => "required|int|min:1|max:24",
             "desc" => "required|array",
-            "desc.*" => "required|string|min:5|max:1000",
+            "desc.*" => "required|string|min:5|max:150",
         ];
     }
     

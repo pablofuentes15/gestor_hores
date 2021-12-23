@@ -65,7 +65,11 @@ class RegisteredUserController extends Controller
         
         App::setLocale($lang);
         
-        $user = User::create($request->validated());
+        $validated = $request->validated();
+        $validated["phone"] = str_replace(' ','',$validated["phone"]);
+        $validated["phone"] = str_replace('-','',$validated["phone"]);
+		
+        $user = User::create($validated);
 
         event(new Registered($user));
 

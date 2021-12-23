@@ -3,10 +3,11 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\App;
 use Auth;
 
-class CreateCustomerRequest extends FormRequest
+class EditProviderRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -33,22 +34,21 @@ class CreateCustomerRequest extends FormRequest
         App::setLocale($this->lang);
         
         return [
-            
-            'name' => 'unique:customers||required||max:50',
-            'email' => 'unique:customers||required||email||max:50',
-            'phone' => 'unique:customers||required||regex:/[0-9]{2}[- ]{0,1}[0-9]{3}[- ]{0,1}[0-9]{2}[- ]{0,1}[0-9]{2}/|',
-            'tax_number' => 'unique:customers||required',
+            'name' => ['required', Rule::unique('providers')->ignore($this->provider->id), 'max:50'],
+            'email' => ['required','email',Rule::unique('providers')->ignore($this->provider->id), 'max:50'],
+            'phone' => ['required', 'regex:/[0-9]{2}[- ]{0,1}[0-9]{3}[- ]{0,1}[0-9]{2}[- ]{0,1}[0-9]{2}/',
+            Rule::unique('providers')->ignore($this->provider->id)],
+            'tax_number' => ['required', Rule::unique('providers')->ignore($this->provider->id), 'regex:/^\d{8}[a-zA-Z]{1}$/'],
             'contact_person' => 'max:150',
             'description' => 'max:400',
             'address' => 'required||max:100',
             'postal_code' => 'required||max:10',
-            'iban' => 'unique:customers||required||max:24',
+            'iban' => ['required', Rule::unique('providers')->ignore($this->provider->id), 'max:24'],
             'country' => 'required',
             'province' => '',
             'municipality' => ''
         ];
     }
-    
     public function messages() 
     {
         return [

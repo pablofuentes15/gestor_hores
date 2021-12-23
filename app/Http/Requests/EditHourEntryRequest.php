@@ -48,27 +48,7 @@ class EditHourEntryRequest extends FormRequest
             //"inputed_hours" => "required|array",
             //"inputed_hours.*" => "required|int|min:1|max:24",
             "desc" => "required|array",
-            "desc.*" => "required|string|min:5|max:1000",
-        ];
-    }
-    
-    public function messages(){
-        return [
-            'days.*.required' => 'days_required',
-            'days.*.string' => 'days_string',
-            'days.*.date_format' => 'days_date_format',
-            'days.*.before_or_equal' => 'days_before_or_equal',
-            'hours.*.required' => 'hours_required',
-            'hours.*.int' => 'hours_int',
-            'hours.*.min' => 'hours_min',
-            'hours.*.max' => 'hours_max',
-//            'users.*.required' => 'users_required',
-//            'users.*.string' => 'users_string',
-            'desc.*.required' => 'desc_required',
-            'desc.*.string' => 'desc_string',
-            'desc.*.min' => 'desc_min',
-            'desc.*.max' => 'desc_max',
-            
+            "desc.*" => "required|string|min:5|max:150",
         ];
     }
 }

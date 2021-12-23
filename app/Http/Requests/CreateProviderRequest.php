@@ -6,7 +6,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\App;
 use Auth;
 
-class CreateCustomerRequest extends FormRequest
+class CreateProviderRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -34,15 +34,15 @@ class CreateCustomerRequest extends FormRequest
         
         return [
             
-            'name' => 'unique:customers||required||max:50',
-            'email' => 'unique:customers||required||email||max:50',
-            'phone' => 'unique:customers||required||regex:/[0-9]{2}[- ]{0,1}[0-9]{3}[- ]{0,1}[0-9]{2}[- ]{0,1}[0-9]{2}/|',
-            'tax_number' => 'unique:customers||required',
+            'name' => 'unique:providers||required||max:50',
+            'email' => 'unique:providers||required||email||max:50',
+            'phone' => 'unique:providers||required||regex:/[0-9]{2}[- ]{0,1}[0-9]{3}[- ]{0,1}[0-9]{2}[- ]{0,1}[0-9]{2}/|',
+            'tax_number' => 'unique:providers||required',
             'contact_person' => 'max:150',
             'description' => 'max:400',
             'address' => 'required||max:100',
             'postal_code' => 'required||max:10',
-            'iban' => 'unique:customers||required||max:24',
+            'iban' => 'unique:providers||required||max:24',
             'country' => 'required',
             'province' => '',
             'municipality' => ''

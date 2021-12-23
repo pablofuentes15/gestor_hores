@@ -39,7 +39,8 @@ class EditUserRequest extends FormRequest
             'name' => 'required|string|max:50',
             'surname' => 'required|string|max:100',
             'email' => ['required', 'string', 'email', 'max:50', Rule::unique('users')->ignore($this->user->id)],
-            'phone' => ['numeric', 'min:100000000', 'max:100000000000000', 'nullable', Rule::unique('users')->ignore($this->user->id)],
+            'phone' => ['regex:/[0-9]{2}[- ]{0,1}[0-9]{3}[- ]{0,1}[0-9]{2}[- ]{0,1}[0-9]{2}/',
+            'regex:/[0-9]{2}[0-9]{3}[0-9]{2}[0-9]{2}/', 'nullable', Rule::unique('users')->ignore($this->user->id)],
             'description' => 'max:400',
             'password' => 'string|min:8|max:25|confirmed|nullable',
             'role' => 'required'
